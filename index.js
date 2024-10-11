@@ -8,10 +8,11 @@ const nodemailer = require("nodemailer")
 const users = require("./models/user");
 const eyepower = require("./models/eyePower");
 const mongoose = require("mongoose");
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8000;
 const { checkUser, checkAuth } = require("./middleware/authmiddleware");
 
 const app = express();
+
 
 mongoose.connect(process.env.MONGO_URL).then(() => {
     console.log("Conected to DB");
@@ -51,17 +52,23 @@ function createToken(id) {
 }
 
 app.post("/signup", async (req, res) => {
+    try {
+        const { username, password, email } = req.body;
+        const image = `https://robohash.org/${Date.now()}.png?size=50x50&set=set1`;
 
-    const { username, password, email } = req.body;
-    const image = `https://robohash.org/${Date.now()}.png?size=50x50&set=set1`;
+        const newUser = await users.create({ username, password, email, image });
+        // console.log(newUser._id)
+        const token = createToken(newUser._id);
+        
 
-    const newUser = await users.create({ username, password, email, image });
-    const token = createToken(newUser._id);
+        res.cookie("jwt", token, { maxAge: maxage * 1000, httpOnly: true });
+        res.redirect("/");
+    } catch (err) {
+        console.error("Error during signup:", err);
+        res.status(500).send("Signup failed.");
+    }
 
-    res.cookie("jwt", token, { maxAge: maxage * 1000, httpOnly: true });
-    res.redirect("/");
-
-})
+});
 
 app.post("/login", async (req, res) => {
 
@@ -70,7 +77,7 @@ app.post("/login", async (req, res) => {
 
     const user = await users.findOne({ email });
 
-    if (user.passsword === passsword) {
+    if (user && user.passsword === passsword) {
         const token = createToken(user._id);
         res.cookie("jwt", token, { maxAge: maxage * 1000, httpOnly: true });
         res.redirect('/')
@@ -94,7 +101,7 @@ app.get("/profile", checkAuth, async (req, res) => {
     res.render("profile", { userData: usereyePower });
 });
 
-app.post("/saveResult" ,checkAuth, async (req, res) => {
+app.post("/saveResult", checkAuth, async (req, res) => {
     const { leftEye, rightEye } = req.body;
 
     console.log(req.body)
@@ -106,7 +113,7 @@ app.post("/saveResult" ,checkAuth, async (req, res) => {
     }
     else {
         try {
-            await eyepower.create({ leftEye, rightEye, date ,user:res.locals.user._id })
+            await eyepower.create({ leftEye, rightEye, date, user: res.locals.user._id })
             res.json("true");
 
         } catch (error) {
@@ -136,7 +143,7 @@ app.post("/send", (req, res) => {
 
     const mailOptions = {
         from: data.email,
-        to: "b21193@students.iitmandi.ac.in",
+        to: "b21257@students.iitmandi.ac.in",
         subject: data.subject,
         text: data.body
     }
